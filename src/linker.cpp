@@ -520,49 +520,27 @@ try_cross_linking:;
 						}
 
 						if (build_context.metrics.arch == TargetArch_riscv64) {
-							result = system_exec_command_line_app("clang",
-								"%s \"%.*s\" "
-								"-c -o \"%.*s\" "
-								"-target %.*s -march=rv64gc "
-								"%.*s "
-								"",
-								clang_path,
-								LIT(asm_file),
-								LIT(obj_file),
-								LIT(build_context.metrics.target_triplet),
-								LIT(build_context.extra_assembler_flags)
-							);
-						} else if (is_osx) {
-							// `as` comes with MacOS.
-							result = system_exec_command_line_app("as",
-								"as \"%.*s\" "
-								"-o \"%.*s\" "
-								"%.*s "
-								"",
-								LIT(asm_file),
-								LIT(obj_file),
-								LIT(build_context.extra_assembler_flags)
-							);
-						} else {
-							// Note(bumbread): I'm assuming nasm is installed on the host machine.
-							// Shipping binaries on unix-likes gets into the weird territorry of
-							// "which version of glibc" is it linked with.
-							result = system_exec_command_line_app("nasm",
-								"nasm \"%.*s\" "
-								"-f \"%.*s\" "
-								"-o \"%.*s\" "
-								"%.*s "
-								"",
-								LIT(asm_file),
-								LIT(obj_format),
-								LIT(obj_file),
-								LIT(build_context.extra_assembler_flags)
-							);						
-							if (result) {
-								gb_printf_err("executing `nasm` to assemble foreing import of %.*s failed.\n\tSuggestion: `nasm` does not ship with the compiler and should be installed with your system's package manager.\n", LIT(asm_file));
-								return result;
-							}
+							build_context.extra_assembler_flags = concatenate_strings(temporary_allocator(), build_context.extra_assembler_flags, str_lit(" -march=rv64gc"));
 						}
+
+						result = system_exec_command_line_app("clang",
+							"%s \"%.*s\" "
+							"-c -o \"%.*s\" "
+							"-target %.*s "
+							"%.*s "
+							"",
+							clang_path,
+							LIT(asm_file),
+							LIT(obj_file),
+							LIT(build_context.metrics.target_triplet),
+							LIT(build_context.extra_assembler_flags)
+						);
+
+						if (result) {
+							gb_printf_err("executing `clang` to assemble foreign import of %.*s failed.\n\tSuggestion: `clang` does not ship with the compiler and should be installed with your system's package manager. If `clang` is present, check the error output.\n", LIT(asm_file));
+							return result;
+						}
+
 						array_add(&gen->output_object_paths, obj_file);
 					} else {
 						bool short_circuit = false;
