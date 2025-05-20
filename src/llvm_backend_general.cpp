@@ -956,6 +956,13 @@ gb_internal void lb_addr_store(lbProcedure *p, lbAddr addr, lbValue value) {
 			lb_emit_store(p, dst_ptr, src_load);
 		}
 		return;
+	} else if (addr.kind == lbAddr_Default) {
+		if (addr.addr.type->kind == Type_MultiPointer) {
+			// Allow assignment to #soa slices and arrays.
+			GB_ASSERT(value.value != nullptr);
+			lb_emit_store(p, addr.addr, value);
+			return;
+		}
 	}
 
 	GB_ASSERT(value.value != nullptr);
