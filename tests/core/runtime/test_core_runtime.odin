@@ -253,3 +253,50 @@ test_memory_compare_zero :: proc(t: ^testing.T) {
 		}
 	}
 }
+
+@(test)
+test_random_generator :: proc(t: ^testing.T) {
+	// By default, the test suite gives us our own deterministic RNG with its
+	// own state. We need to test the case of using the thread local
+	// `global_rand_seed`.
+	seed: u64 = 1
+	raw_seed := transmute([]u8)runtime.Raw_Slice{&seed, size_of(seed)}
+
+	p := runtime.default_random_generator_proc
+
+	// Test the query info capability.
+	info: runtime.Random_Generator_Query_Info
+	p(nil, .Query_Info, transmute([]u8)runtime.Raw_Slice{&info, size_of(info)})
+	expected_info := runtime.Random_Generator_Query_Info{.Uniform, .Resettable}
+	testing.expectf(t,
+		info == expected_info,
+		"The default random generator info query expected to produce %v, got: %v", expected_info, info)
+
+	// Intentionally set the seed.
+	buf: [32]u8
+	p(nil, .Reset, raw_seed)
+	p(nil, .Read, buf[:])
+
+	testing.expectf(t,
+		runtime.memory_compare_zero(&buf[0], len(buf)) == 1,
+		"The default random generator failed to change a single bit in a zero-initialized byte buffer with length of %i.", len(buf))
+
+	// Reset the seed and try to get the same result.
+	next: [len(buf)]u8
+	p(nil, .Reset, raw_seed)
+	p(nil, .Read, next[:])
+
+	testing.expectf(t,
+		runtime.memory_compare(&buf[0], &next[0], len(next)) == 0,
+		"The default random generator failed to generate the same sample for the same seed.\n\tFirst: %v\n\tNext:  %v", buf, next)
+
+	// Now try the nil seed state.
+	intrinsics.mem_zero(&buf[0], len(buf))
+	seed = 0
+	p(nil, .Reset, raw_seed)
+	p(nil, .Read, buf[:])
+
+	testing.expectf(t,
+		runtime.memory_compare_zero(&buf[0], len(buf)) == 1,
+		"The default random generator failed to change a single bit in a zero-initialized byte buffer with length of %i.", len(buf))
+}
