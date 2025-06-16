@@ -33,8 +33,6 @@ test_expected_assert_in_proc :: proc(t: ^testing.T) {
 	target := #location(some_proc)
 	target.line += 1
 	target.column = 2
-	assert(target.procedure == "", "The bug's been fixed; this line and the next can be deleted.")
-	target.procedure = "some_proc" // TODO: Is this supposed to be blank on #location(...)?
 	testing.expect_assert(t, target)
 	some_proc()
 }
